@@ -2,6 +2,7 @@
 
 #include "Grabber.h"
 #include "Engine/World.h"
+#include "Components/PrimitiveComponent.h"
 #include "DrawDebugHelpers.h"
 
 #define OUT
@@ -51,18 +52,45 @@ void UGrabber::SetupInputComponent()
 void UGrabber::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (PhysicsHandle->GrabbedComponent)
+	{
+		FVector PlayerViewPointLocation;
+		FRotator PlayerViewPointRotator;
+		GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(
+			OUT PlayerViewPointLocation,
+			OUT PlayerViewPointRotator
+		);
+
+		FVector LineTraceEnd = PlayerViewPointLocation + PlayerViewPointRotator.Vector()*Reach;
+
+		PhysicsHandle->SetTargetLocation(LineTraceEnd);
+	}
 }
 
 void UGrabber::Grab()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Grab pressed"));
-	GetFirstPhysicsBodyInReach();
+	FHitResult HitResult = GetFirstPhysicsBodyInReach();
+	auto ComponentToGrab =  HitResult.GetComponent();
+
+	auto ActorHit = HitResult.GetActor();
+	if (ActorHit)
+	{
+		PhysicsHandle->GrabComponent(
+			ComponentToGrab,
+			NAME_None,
+			ComponentToGrab->GetOwner()->GetActorLocation(),
+			true	// allow rotation
+		);
+	}
 }
 
 
 void UGrabber::Release()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Grab released"));
+	PhysicsHandle->ReleaseComponent();
 }
 
 FHitResult UGrabber::GetFirstPhysicsBodyInReach() const
